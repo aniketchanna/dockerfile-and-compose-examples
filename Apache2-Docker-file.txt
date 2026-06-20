@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN a2enmod ssl proxy proxy_http headers rewrite socache_shmcb || true
 RUN a2enmod proxy_wstunnel || true
 
-RUN mkdir -p /etc/apache2/clayhr
+RUN mkdir -p /etc/apache2/anyhr
 
 # Prepare SSL private directory (you will mount the key here at runtime)
 RUN mkdir -p /etc/ssl/private \
