@@ -1,0 +1,35 @@
+FROM debian:bookworm-slim
+
+# Select environment: staging (default) or prod
+ARG ENV=staging
+
+# Install Apache2 + mod_jk (required because your config has mods-enabled/jk.load)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    apache2 libapache2-mod-jk ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+# Enable common modules (keep || true because your copied config may already enable some)
+RUN a2enmod ssl proxy proxy_http headers rewrite socache_shmcb || true
+RUN a2enmod proxy_wstunnel || true
+
+RUN mkdir -p /etc/apache2/clayhr
+
+# Prepare SSL private directory (you will mount the key here at runtime)
+RUN mkdir -p /etc/ssl/private \
+ && chmod 710 /etc/ssl/private
+
+# Copy env-specific apache2 config layout into the image
+# Expected build context:
+#   etc/apache2/staging/...
+#   etc/apache2/prod/...
+COPY etc/apache2/${ENV}/ /etc/apache2/
+
+# OPTIONAL: if you keep non-secret cert files in repo (avoid private keys in image)
+# Expected:
+#   certs/staging/...
+#   certs/prod/...
+# COPY certs/${ENV}/ /etc/apache2/certs/
+
+EXPOSE 80 443
+
+CMD ["apache2ctl", "-D", "FOREGROUND"]

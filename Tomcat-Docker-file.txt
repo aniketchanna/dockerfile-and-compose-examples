@@ -1,0 +1,38 @@
+FROM eclipse-temurin:11-jre-jammy
+
+ARG TOMCAT_VERSION=9.0.98
+ARG TOMCAT_MAJOR=9
+
+# Select environment: staging (default) or prod
+ARG ENV=staging
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl tar \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -r -m -U -d /opt/tomcat -s /usr/sbin/nologin tomcat
+
+RUN set -eux; \
+  cd /tmp; \
+  curl -fsSLO "https://archive.apache.org/dist/tomcat/tomcat-${TOMCAT_MAJOR}/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz"; \
+  tar -xzf "apache-tomcat-${TOMCAT_VERSION}.tar.gz" -C /opt; \
+  ln -s "/opt/apache-tomcat-${TOMCAT_VERSION}" /opt/tomcat-home; \
+  rm -rf /tmp/*; \
+  chown -R tomcat:tomcat "/opt/apache-tomcat-${TOMCAT_VERSION}"
+
+ENV CATALINA_HOME=/opt/tomcat-home
+ENV PATH="${CATALINA_HOME}/bin:${PATH}"
+
+# Clean default apps
+RUN rm -rf ${CATALINA_HOME}/webapps/*
+
+# Copy env-specific config and wars
+# Expected structure:
+#   conf/staging/* , conf/prod/*
+#   webapps/staging/* , webapps/prod/*
+COPY --chown=tomcat:tomcat webapps/${ENV}/ ${CATALINA_HOME}/webapps/
+
+
+EXPOSE 8080
+USER tomcat
+CMD ["catalina.sh", "run"]

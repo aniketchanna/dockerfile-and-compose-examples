@@ -1,0 +1,44 @@
+services:
+  tomcat:
+    image: ${TOMCAT_IMAGE}
+    restart: unless-stopped
+    expose:
+      - "8080"
+      - "8009"
+    environment:
+      - 'CATALINA_OPTS=-Xms1024m -Xmx4096m -XX:+UseG1GC -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/opt/tomcat-home/logs/heapdump.hprof -Xlog:gc*:file=/opt/tomcat-home/logs/gc.log:time,uptime,level,tags:filecount=10,filesize=20M'
+      # If you really want a hard metaspace cap, uncomment:
+      # - 'CATALINA_OPTS=-Xms1024m -Xmx4096m -XX:MaxMetaspaceSize=768m -XX:+UseG1GC -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/opt/tomcat-home/logs/heapdump.hprof -Xlog:gc*:file=/opt/tomcat-home/logs/gc.log:time,uptime,level,tags:filecount=10,filesize=20M'
+    volumes:
+      # Mount Tomcat conf from host (prod server)
+      - /opt/clayhr-docker/tomcat/conf:/opt/tomcat-home/conf:ro,Z
+
+      # Existing mounts
+      - /opt/clayhr-docker/tomcat/logs:/opt/tomcat-home/logs:Z
+      - /opt/clayhr-docker/tomcat/lib/logback.xml:/opt/tomcat-home/lib/logback.xml:ro,Z
+    mem_limit: 6g
+    networks:
+      - appnet
+    platform: linux/arm64
+
+  apache2:
+    image: ${APACHE_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      - tomcat
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /opt/clayhr-docker/apache2/certs/clayhr.crt:/etc/ssl/certs/clayhr.crt:ro,Z
+      - /opt/clayhr-docker/apache2/certs/clayhr-root.crt:/etc/ssl/certs/clayhr-root.crt:ro,Z
+      - /opt/clayhr-docker/apache2/certs/clayhr.key:/etc/ssl/private/clayhr.key:ro,Z
+      - /opt/clayhr-docker/apache2/conf/workers.properties:/etc/apache2/clayhr/workers.properties:ro,Z
+    mem_limit: 512m
+    networks:
+      - appnet
+    platform: linux/arm64
+
+networks:
+  appnet:
+    driver: bridge
